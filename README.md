@@ -17,7 +17,7 @@ The study employed various regression models including Linear Regression, Suppor
 - A comparative analysis of different models showed that while Lasso Regression minimized larger errors effectively, Random Forest provided the most reliable predictions across various tests.
   <img width="192" alt="Comparison Table" src="https://github.com/PavanTejaSadem/Quality-of-Life-Prediction/assets/159733657/1bbf9557-07e9-4272-9374-eeec60fb06df">
 
-
+R-Shiny Application Link: https://pavanteja.shinyapps.io/Capstone/
 ## Conclusion
 The project successfully leveraged multiple regression techniques to model and predict the Quality of Life among Asian Americans, highlighting the Random Forest model's suitability for this complex prediction task. This work not only enhances the understanding of factors influencing the well-being of Asian Americans but also showcases the application of predictive analytics in social and public health research. An R Shiny application was also developed, enabling interactive exploration of the impact of various predictors on Quality of Life.
 
