@@ -1,0 +1,624 @@
+---
+title: "Quality of Life Prediction for Asian Americans in the U.S"
+author: "Pavan Teja Sadem"
+date: "2024-05-04"
+
+---
+```{r}
+#Importing Libraries
+
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+```
+
+#Loaded the required libraries for data pre-processing and plotting.
+
+```{r}
+#Importing the Dataset
+raw_data <- read.csv('Raw Data.csv')
+
+```
+
+#Imported the dataset required for regression analysis using 'read.csv' function and named it as raw_data.
+
+```{r}
+#missing values
+#Replacing blanks to NA'S
+
+raw_data[raw_data == ""] <- NA
+
+sum(is.na(raw_data))
+
+cleaned_data <- na.omit(raw_data)
+
+sum(is.na(cleaned_data))
+```
+#Replaced the blank spaces in the raw_data with 'NA' and counted the number of NA's.
+#There were 1512 NA's in the dataset.
+#Using na.omit() function, removed all the NA's from the dataset.
+#Renamed the cleaned dataset as cleaned_data.
+
+```{r}
+
+#Replacing Column Names for better readability
+
+colnames(cleaned_data)[colnames(cleaned_data) == 'Citizenship.Class'] <- 'Citizenship'
+colnames(cleaned_data)[colnames(cleaned_data) == 'Status.of.Ownership'] <- 'Residence.Ownership'
+colnames(cleaned_data)[colnames(cleaned_data) == 'Personal.Car'] <- 'Car'
+colnames(cleaned_data)[colnames(cleaned_data) == 'Parent'] <- 'Living.with.Parents'
+```
+
+#Replaced the column names for better understanding of data
+
+```{r}
+#Encoding the binary variables
+
+cleaned_data$Spouse <- ifelse(cleaned_data$Spouse == "Living with spouse", 1, 0)
+cleaned_data$Children <- ifelse(cleaned_data$Children == "Living with children", 1, 0)
+cleaned_data$Living.with.Parents <- ifelse(cleaned_data$Living.with.Parents == "Living with parents", 1, 0)
+cleaned_data$Full.Time.Employment <- ifelse(cleaned_data$Full.Time.Employment == "Employed full time", 1, 0)
+cleaned_data$Part.Time.Employment <- ifelse(cleaned_data$Part.Time.Employment == "Employed part time", 1, 0)
+cleaned_data$Student <- ifelse(cleaned_data$Student == "Student", 1, 0)
+cleaned_data$Retired <- ifelse(cleaned_data$Retired == "Retired", 1, 0)
+cleaned_data$Health.Insurance <- ifelse(cleaned_data$Health.Insurance == "Yes", 1, 0)
+cleaned_data$US.Born <- ifelse(cleaned_data$US.Born == "Yes", 1, 0)
+cleaned_data$Citizenship <- ifelse(cleaned_data$Citizenship == "Yes", 1, 0)
+cleaned_data$Residence.Ownership <- ifelse(cleaned_data$Residence.Ownership == "Own", 1, 0)
+cleaned_data$Car <- ifelse(cleaned_data$Car == "Yes", 1, 0)
+```
+
+#Encoding the variables in the dataset is a crucial step in this regression analysis. After cleaning the data, the binary variables are encoded. Binary variables like 'Spouse', 'Children', 'Living.with.Parents', 'Full.Time.Employment', 'Part.Time.Employment', 'Student', 'Retired', 'Health.Insurance', 'US.Born', 'Citizenship', 'Residence.Ownership', and 'Car' were encoded numerically (1 for Yes, 0 for No) to facilitate their inclusion in the regression model.
+
+```{r}
+# Gender column Encoding
+cleaned_data$Gender <- factor(cleaned_data$Gender, levels = c("Female", "Male"))
+gender_encoded <- model.matrix(~ Gender - 1, data = cleaned_data)
+cleaned_data <- cbind(cleaned_data, gender_encoded)
+
+# Ethnicity column Encoding 
+cleaned_data$Ethnicity <- factor(cleaned_data$Ethnicity, levels = c("Asian Indian", "Chinese", "Filipino", "Korean", "Vietnamese", "Other"))
+ethnicity_encoded <- model.matrix(~ Ethnicity - 1, data = cleaned_data)
+cleaned_data <- cbind(cleaned_data, ethnicity_encoded)
+
+# Marital Status column Encoding
+cleaned_data$Marital.Status <- factor(cleaned_data$Marital.Status, levels = c("Single", "Living with a partner", "Married", "Other"))
+marital_status_encoded <- model.matrix(~ Marital.Status - 1, data = cleaned_data)
+cleaned_data <- cbind(cleaned_data, marital_status_encoded)
+
+# Religion column Encoding 
+cleaned_data$Religion <- factor(cleaned_data$Religion, levels = c("Buddhist", "Catholic", "Hindu", "Muslim", "Protestant", "Other", "None"))
+religion_encoded <- model.matrix(~ Religion - 1, data = cleaned_data)
+cleaned_data <- cbind(cleaned_data, religion_encoded)
+
+# Employment Type column Encoding
+cleaned_data$Employment.Type <- factor(cleaned_data$Employment.Type, levels = c("Full Time", "Part Time", "None"))
+employment_type_encoded <- model.matrix(~ Employment.Type - 1, data = cleaned_data)
+cleaned_data <- cbind(cleaned_data, employment_type_encoded)
+
+```
+
+#Categorical variables such as 'Gender', 'Ethnicity', 'Marital Status', 'Religion', and 'Employment.Type' were transformed into dummy variables through one-hot encoding.
+
+```{r}
+#Encoding Income column
+
+cleaned_data$Income <- with(cleaned_data, case_when(
+  Income == "$0 - $9,999" ~ 10000,
+  Income == "$10,000 - $19,999" ~ 20000,
+  Income == "$20,000 - $29,999" ~ 30000,
+  Income == "$30,000 - $39,999" ~ 40000,
+  Income == "$40,000 - $49,999" ~ 50000,
+  Income == "$50,000 - $59,999" ~ 60000,
+  Income == "$60,000 - $69,999" ~ 70000,
+  Income == "$70,000 and over" ~ 80000
+))
+```
+
+#The 'Income' variable was converted from categorical ranges to their respective higher numeric values (e.g., "$0 - $9,999" to 10000, "$10,000 - $19,999" to 20000) to treat it as a continuous variable, enhancing the precision of the analysis. 
+
+```{r}
+#Encoding the Ordinal Variables
+
+cleaned_data$English.Speaking <- as.numeric(factor(cleaned_data$English.Speaking,
+                                           levels = c("Not at all", "Not well", "Well", "Very well"),
+                                           ordered = TRUE))
+
+cleaned_data$Familiarity.with.America <- as.numeric(factor(cleaned_data$Familiarity.with.America,
+                                                   levels = c("Very low", "Low", "High", "Very high"),
+                                                   ordered = TRUE))
+
+
+cleaned_data$Familiarity.with.Ethnic.Origin <- as.numeric(factor(cleaned_data$Familiarity.with.Ethnic.Origin,
+                                                         levels = c("Very low", "Low", "High", "Very high"),
+                                                         ordered = TRUE))
+
+cleaned_data$Present.Health <- as.numeric(factor(cleaned_data$Present.Health,
+                                         levels = c("Poor", "Fair", "Good", "Very Good", "Excellent"),
+                                         ordered = TRUE))
+
+cleaned_data$Present.Mental.Health <- as.numeric(factor(cleaned_data$Present.Mental.Health,
+                                                levels = c("Poor", "Fair", "Good", "Very Good", "Excellent"),
+                                                ordered = TRUE))
+
+cleaned_data$Satisfaction.with.Life <- as.numeric(factor(cleaned_data$Satisfaction.with.Life,
+                                                 levels = c("Not at all", "Not very much", "Pretty much", "Very much"),
+                                                 ordered = TRUE))
+
+```
+
+#Additionally, ordinal variables like 'English.Speaking', 'Familiarity.with.America', 'Familiarity.with.Ethnic.Origin', 'Present.Health', 'Present.Mental.Health', and 'Satisfaction.with.Life' were converted to numeric scales to maintain their inherent order, optimizing them for regression analysis. 
+
+```{r}
+# Scaling the Income data and storing the scaling parameters
+scaled_income <- scale(cleaned_data$Income, center = TRUE, scale = TRUE)
+# Extracting  mean and standard deviation
+original_mean_income <- attr(scaled_income, "scaled:center")
+original_sd_income <- attr(scaled_income, "scaled:scale")
+
+# Replacing the original Income column with the scaled values
+cleaned_data$Income <- scaled_income[, 1]
+
+
+# Scale the data and store the scaling parameters
+scaled_quality_of_life <- scale(cleaned_data$Quality.of.Life, center = TRUE, scale = TRUE)
+# Extracting the mean and standard deviation
+original_mean_qol <- attr(scaled_quality_of_life, "scaled:center")
+original_sd_qol <- attr(scaled_quality_of_life, "scaled:scale")
+
+# Replacing the original Quality of Life column with the scaled values
+cleaned_data$Quality.of.Life <- scaled_quality_of_life[, 1]
+
+#Printing the values
+print(paste("Mean for quality of life:", original_mean_qol))
+print(paste("SD for quality of life:", original_sd_qol))
+print(paste("Mean for income:", original_mean_income))
+print(paste("SD for income:", original_sd_income))
+
+```
+
+#To ensure that numerical features contributed equally to the analysis and to facilitate convergencev in modeling, the 'Income' and 'Quality of Life' variables were standardized. This scaling process centered each variable around a mean of zero and scaled them to unit variance.
+
+#The mean and SD values are saved, such that when plotting the Actual vs Predicted Quality of Life values plots during the regression analysis, the Mean and SD values will help in bringing the scaled values to normal scale.
+
+```{r}
+#Creating a new data-frame, excluding unnecessary columns from the cleaned dataset
+data <- cleaned_data[, -c(1, 3, 4, 6, 11, 12, 13, 14, 17)]
+
+```
+
+#Before proceeding to regression analysis, the dataset was refined by excluding certain columns that were not necessary for the modeling process. Columns such as 'Survey.ID' and 'Occupation' were removed as they do not contribute predictive power to the model. The original 'Gender', 'Ethnicity', 'Marital.Status', and 'Religion' columns were also excluded because they had been transformed into more useful dummy variables through one-hot encoding. Similarly, 'Full.Time.Employment' and 'Part.Time.Employment' were removed since their information is captured in the newly created 'Employment.Type' encoded columns. This selective exclusion helps streamline the dataset, focusing on variables that provide meaningful insights and enhance the model’s accuracy.
+
+
+#After the data pre-processing phase, the data now has 1563 rows and 45 columns, ready to be used for regression analysis.
+
+
+```{r}
+#Splitting the data set
+
+library(caTools)
+set.seed(123)
+split <- sample.split(data$Quality.of.Life, SplitRatio = 0.80)
+training_set <- subset(data, split == TRUE)
+test_set <- subset(data, split == FALSE)
+```
+
+#set.seed() function is used for reproducibility. The data is splitted into 80:20 ratio for training and testing the model.
+
+```{r}
+#Linear Regression model
+
+lr <- lm(formula = Quality.of.Life ~ .,
+                data = training_set)
+
+summary(lr)
+
+```
+#Linear regression is fitted to the data and the summary is noted for all the 44 variables.
+
+#For feature selection, backward elimination technique is utilized.
+
+```{r}
+#Backward Elimination for Feature Selection
+
+library(MASS)
+
+#Fitting the initial model with all dependent variables
+
+lr_initial <- lm(Quality.of.Life ~ ., data = training_set)
+
+
+#Initiating Backward Elimination with a p-value of 0.05
+
+eliminate <- function(model, p_value_threshold = 0.05) {
+model_summary <- summary(model)
+while(TRUE) {
+    p_values <- coef(summary(model))[, "Pr(>|t|)"]
+    max_p_value <- max(p_values[p_values < 1])
+    if (max_p_value > p_value_threshold) {
+      variable_to_remove <- names(p_values)[which.max(p_values)]
+      formula_update <- as.formula(paste("Quality.of.Life ~ . -", variable_to_remove))
+      model <- update(model, formula_update)
+    } else {
+      break
+    }
+  }
+  return(model)
+}
+
+# Perform backward elimination
+
+lr_final <- eliminate(lr_initial, p_value_threshold = 0.05)
+
+
+# Summary of the final model after elimination
+
+summary(lr_final)
+
+```
+#Utilizing backward elimination with a p-value threshold of 0.05, the process distilled the variables down to 12 significant ones: 'Age', 'Income', 'Achieving Ends Meet', 'Duration of Residency', 'English Speaking', 'Familiarity with America', 'Familiarity with Ethnic Origin', 'Present Mental Health', 'Residence Ownership', 'Car', 'Satisfaction with Life', and 'Gender (Female)'.
+
+```{r}
+#Fitting Linear Regression with the obtained Significant variables
+
+lin_reg <- lm(formula = Quality.of.Life ~ Age + Income + Achieving.Ends.Meet + Duration.of.Residency +
+                English.Speaking + Familiarity.with.America + Familiarity.with.Ethnic.Origin +
+                Present.Mental.Health + Residence.Ownership + Car + Satisfaction.with.Life +
+                GenderFemale,
+              data = training_set)
+
+summary(lin_reg)
+
+
+#Predicting values on the test set
+
+predictions_lin_reg <- predict(lin_reg, newdata = test_set)
+
+# Evaluating the model
+
+rmse_lin_reg <- sqrt(mean((test_set$Quality.of.Life - predictions_lin_reg)^2))
+
+mae_lin_reg <- mean(abs(predictions_lin_reg  - test_set$Quality.of.Life))
+
+
+#Printing RMSE and MAE values
+
+print(paste("RMSE for Linear Regrerssion:", rmse_lin_reg))
+print(paste("MAE for Linear Regression:", mae_lin_reg))
+```
+#The Linear Regression model was applied to estimate the 'Quality of Life' based on the distilled set of significant variables. It was rigorously trained with the training set data to capture the nuanced relationship between the predictors and the target variable. The model's accuracy was quantified using RMSE and MAE, yielding values of 0.7827 and 0.6190, respectively. These metrics provide a quantitative measure of the model's performance, indicating a modest level of prediction error in the context of the dataset.
+
+```{r}
+# Converting the predictions back to the original scale
+predictions_lr_original_scale <- predictions_lin_reg * original_sd_qol + original_mean_qol
+
+# Converting the actual scaled test set values back to the original scale
+actual_lr_original_scale <- test_set$Quality.of.Life * original_sd_qol + original_mean_qol
+
+#Visualizing the model
+
+ggplot(data.frame(Actual = actual_lr_original_scale, Predicted = predictions_lr_original_scale), aes(x = Actual, y = Predicted)) +
+  geom_point(colour = 'black') +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "blue") +
+  ggtitle('Actual vs Predicted (Linear Regression') +
+  xlab('Actual Quality of Life') +
+  ylab('Predicted Quality of Life') +
+  theme_minimal()
+
+```
+#The plot provides a visual assessment of the Linear Regression model's performance by contrasting the actual 'Quality of Life' scores with those predicted by the model. The points represent individual predictions, where a closer alignment with the dashed blue line — the line of perfect prediction — indicates higher accuracy. The distribution of points around this line reflects the model's deviations from the ideal; hence, the closer the points are to the line, the more precise the model. Despite some scatter, the concentration of data points around the line suggests that the Linear Regression model is reasonably effective in predicting the 'Quality of Life' based on the selected variables.
+
+
+```{r}
+#Support Vector Regression
+
+library(e1071)
+
+svr_model <- svm(Quality.of.Life ~  Age + Income + Achieving.Ends.Meet + 
+                   Duration.of.Residency + English.Speaking + Familiarity.with.America +
+                   Familiarity.with.Ethnic.Origin + Present.Mental.Health + 
+                   Residence.Ownership + Car + Satisfaction.with.Life + GenderFemale,
+                 data = training_set, 
+                 type = "eps-regression",
+                 kernel = "radial")
+
+# Predicting on the test set
+
+predictions_svr <- predict(svr_model, newdata = test_set)
+
+
+# Calculating RMSE and MAE
+rmse_svr <- sqrt(mean((test_set$Quality.of.Life - predictions_svr)^2))
+
+mae_svr <- mean(abs(predictions_svr - test_set$Quality.of.Life))
+
+
+#Printing RMSE and MAE values
+
+print(paste("RMSE for SVR:", rmse_svr))
+print(paste("MAE for SVR:", mae_svr))
+
+```
+#Support Vector Regression (SVR) was the next technique applied to forecast the 'Quality of Life' using the variables deemed significant through feature selection. SVR differs from linear regression by focusing on minimizing error within a certain margin, thereby capturing more complex relationships. After training the SVR model with a radial kernel on the dataset, it was tested to predict the 'Quality of Life' values, achieving an RMSE of 0.8164 and an MAE of 0.6376. These metrics indicate the average deviation of the predictions from the actual values, which are slightly higher than those from the linear model, hinting at the complex nature of the data that SVR tries to encapsulate.
+
+```{r}
+# Converting the predictions back to the original scale
+predictions_svr_original_scale <- predictions_svr * original_sd_qol + original_mean_qol
+
+# Converting the actual scaled test set values back to the original scale
+actual_svr_original_scale <- test_set$Quality.of.Life * original_sd_qol + original_mean_qol
+
+#Visualizing
+plot_data <- data.frame(Actual = actual_svr_original_scale, Predicted = predictions_svr_original_scale)
+
+
+# Plotting
+ggplot(plot_data, aes(x = Actual, y = Predicted)) +
+  geom_point(alpha = 0.6, color = 'blue') +  
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +  
+  labs(title = "Actual vs. Predicted Quality of Life", x = "Actual Quality of Life", y = "Predicted Quality of Life") +
+  theme_minimal() +  
+  theme(plot.title = element_text(hjust = 0.5))  
+
+```
+#The visualization for the SVR model presents the predicted versus actual 'Quality of Life' scores, where each point symbolizes a prediction. The dashed red line represents the ideal scenario where predictions perfectly match the actual values. Observations clustering close to this line suggest higher model accuracy. In this plot, while many predictions align well with the actual values, indicating effective modeling, the spread around the line also suggests variability in the predictions. The SVR model, with its ability to manage non-linear patterns, displays a potent approach, yet there is room for refinement to enhance precision.
+
+```{r}
+#Decision Trees
+
+library(rpart)
+
+dt_model <- rpart(Quality.of.Life ~ Age + Income + Achieving.Ends.Meet + 
+                    Duration.of.Residency + English.Speaking + Familiarity.with.America +
+                    Familiarity.with.Ethnic.Origin + Present.Mental.Health + 
+                    Residence.Ownership + Car + Satisfaction.with.Life + GenderFemale,
+                  data = training_set,
+                  method = "anova")
+
+# Summary of the decision tree model
+
+summary(dt_model)
+
+#Predicting values on the test set
+
+predictions_dt = predict(dt_model, newdata = test_set)
+
+#Calculating RMSE and MAE
+
+mae_dt<- mean(abs(test_set$Quality.of.Life - predictions_dt))
+
+rmse_dt <- sqrt(mean((test_set$Quality.of.Life - predictions_dt)^2))
+
+#Printing RMSE and MAE values
+
+print(paste("RMSE for DT:", rmse_dt))
+print(paste("MAE for DT:", mae_dt))
+
+```
+#Decision Trees were utilized as a non-linear approach to predict the 'Quality of Life'. This model works by splitting the data into subsets based on feature value thresholds, which can be intuitively visualized as a tree. For the Decision Trees, the RMSE was calculated at 0.8688, and the MAE was 0.6708. These metrics are higher compared to the previous models, suggesting that the Decision Trees might have overfitted or failed to capture the complexity of the dataset adequately.
+
+```{r}
+# Converting the predictions back to the original scale
+predictions_dt_original_scale <- predictions_dt * original_sd_qol + original_mean_qol
+
+# Converting the actual scaled test set values back to the original scale
+actual_dt_original_scale <- test_set$Quality.of.Life * original_sd_qol + original_mean_qol
+
+#Visualizing the model
+
+ggplot(data.frame(Actual = actual_dt_original_scale, Predicted = predictions_dt_original_scale), aes(x = Actual, y = Predicted)) +
+  geom_point(colour = 'darkgreen') +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+  ggtitle('Actual vs Predicted (Decision Trees)') +
+  xlab('Actual Quality of Life') +
+  ylab('Predicted Quality of Life') +
+  theme_minimal()
+```
+#In the plot for Decision Trees, each green dot represents the correspondence between the actual and the predicted 'Quality of Life' scores. The dashed red line illustrates the line of perfect prediction. The data points are more spread out from this line compared to previous models, implying that the Decision Tree model's accuracy may be less consistent. Nevertheless, the Decision Trees offer an easy-to-understand structure, making the model’s decision-making process transparent and interpretable. This feature is particularly beneficial when the model's explainability is as crucial as its predictive power.
+
+```{r}
+#Random Forest
+
+library(randomForest)
+
+rf_model <- randomForest(Quality.of.Life ~ Age + Income + Achieving.Ends.Meet +
+                                      Duration.of.Residency + English.Speaking + Familiarity.with.America +
+                                      Familiarity.with.Ethnic.Origin + Present.Mental.Health + 
+                                      Residence.Ownership + Car + Satisfaction.with.Life + GenderFemale, 
+                                    data = training_set, 
+                        ntree=1000, mtry=4, importance=TRUE)
+
+
+print(rf_model)
+
+# Predicting values on the test set
+predictions_rf <- predict(rf_model, newdata = test_set)
+
+
+# Calculating RMSE and MAE
+rmse_rf <- sqrt(mean((test_set$Quality.of.Life - predictions_rf)^2))
+
+mae_rf <- mean(abs(predictions_rf - test_set$Quality.of.Life))
+
+
+#Printing RMSE and MAE values
+
+print(paste("RMSE for RF:", rmse_rf))
+print(paste("MAE for RF:", mae_rf))
+```
+#The Random Forest regression technique was implemented to enhance the prediction accuracy of the 'Quality of Life' variable. This ensemble learning method constructs multiple decision trees during training time and outputs the mean prediction of the individual trees, reducing overfitting and improving prediction accuracy. The model achieved a Root Mean Square Error (RMSE) of approximately 0.790 and a Mean Absolute Error (MAE) of approximately 0.617, indicating a relatively high level of precision.
+
+```{r}
+#Saving the Random Forest model to use in Rshiny
+
+saveRDS(rf_model, "rf_model.rds")
+```
+
+#Saving the random forest model for using in Rshiny application.
+
+```{r}
+# Converting the predictions back to the original scale
+predictions_rf_original_scale <- predictions_rf * original_sd_qol + original_mean_qol
+
+# Converting the actual scaled test set values back to the original scale
+actual_rf_original_scale <- test_set$Quality.of.Life * original_sd_qol + original_mean_qol
+
+#Visualization
+
+ggplot(data.frame(Actual = actual_rf_original_scale, Predicted = predictions_rf_original_scale), aes(x = Actual, y = Predicted)) +
+  geom_point(colour = 'blue') +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = 'red') +
+  ggtitle('Actual vs Predicted (Random Forest Regression)') +
+  xlab('Actual Quality of Life') +
+  ylab('Predicted Quality of Life') +
+  theme_minimal()
+
+```
+#The plot for the Random Forest regression shows each blue dot representing a match between the actual and the predicted 'Quality of Life' scores. The red dashed line indicates the line where the prediction perfectly matches the actual score. Points lying along this line suggest precise predictions. Compared to other models, Random Forest has managed to bring more predictions closer to the line, implying a stronger correlation between actual and predicted values and, therefore, a better-performing model in this context. This model's ability to handle many input variables and its robustness to outliers makes it particularly suited for complex datasets like the one used in this study.
+
+```{r}
+#Lasso Regression
+
+library(glmnet)
+
+x_train <- as.matrix(training_set[, c("Age", "Income", "Achieving.Ends.Meet", "Duration.of.Residency", 
+                                      "English.Speaking", "Familiarity.with.America", "Familiarity.with.Ethnic.Origin", 
+                                      "Present.Mental.Health", "Residence.Ownership", "Car", "Satisfaction.with.Life", 
+                                      "GenderFemale")])
+y_train <- training_set$Quality.of.Life
+
+x_test <- as.matrix(test_set[, c("Age", "Income", "Achieving.Ends.Meet", "Duration.of.Residency", 
+                                 "English.Speaking", "Familiarity.with.America", "Familiarity.with.Ethnic.Origin", 
+                                 "Present.Mental.Health", "Residence.Ownership", "Car", "Satisfaction.with.Life", 
+                                 "GenderFemale")])
+y_test <- test_set$Quality.of.Life
+
+
+# Fitting the Lasso model
+lasso_model <- glmnet(x_train, y_train, alpha = 1)  
+
+# Plotting the coefficient shrinkage
+plot(lasso_model, xvar = "lambda", label = TRUE)
+
+
+# Performing cross-validation
+cv_lasso <- cv.glmnet(x_train, y_train, alpha = 1)
+plot(cv_lasso)
+
+# Best lambda
+best_lambda <- cv_lasso$lambda.min
+print(paste("Best lambda:", best_lambda))
+
+# Making predictions
+predictions_lasso <- predict(lasso_model, s = best_lambda, newx = x_test)
+
+# Calculating RMSE and MAE
+rmse_lasso <- sqrt(mean((y_test - predictions_lasso)^2))
+mae_lasso <- mean(abs(y_test - predictions_lasso))
+
+# Output
+print(paste("RMSE for Lasso Regression:", rmse_lasso))
+print(paste("MAE for Lasso Regression:", mae_lasso))
+
+```
+#Lasso regression was employed to predict the 'Quality of Life' variable, offering a refinement over linear regression by imposing a penalty on the absolute size of the regression coefficients. By doing so, it effectively reduces the model complexity and prevents over-fitting, which can be particularly advantageous when dealing with data that may have multicollinearity. The Lasso model produced a Root Mean Square Error (RMSE) of roughly 0.782 and a Mean Absolute Error (MAE) of approximately 0.619, indicating its effectiveness in capturing the essence of the dataset.
+
+```{r}
+# Converting the predictions back to the original scale
+predictions_lasso_original_scale <- predictions_lasso * original_sd_qol + original_mean_qol
+
+# Converting the actual scaled test set values back to the original scale
+actual_lasso_original_scale <- test_set$Quality.of.Life * original_sd_qol + original_mean_qol
+
+#Visualization
+
+ggplot(data.frame(Actual = actual_lasso_original_scale, Predicted = as.vector(predictions_lasso_original_scale) ), aes(x = Actual, y = Predicted)) +
+  geom_point(colour = 'orange') +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = 'black') +
+  ggtitle('Actual vs Predicted (Lasso Regression)') +
+  xlab('Actual Quality of Life') +
+  ylab('Predicted Quality of Life') +
+  theme_minimal()
+
+```
+#The accompanying plot for the Lasso regression visually illustrates the actual versus predicted 'Quality of Life' values, with each orange dot representing an observation. The black dashed line represents the ideal scenario where predicted values perfectly align with actual values. While the plot reveals a decent alignment along this ideal line, it also showcases the Lasso model's capability to shrink less important features to zero, thus performing feature selection. This ability to identify the most significant predictors is a hallmark of Lasso regression, making it a valuable tool for predictive modeling in datasets with numerous variables.
+
+```{r}
+#Ridge Regression 
+ridge_model <- glmnet(x_train, y_train, alpha = 0)  
+
+# Performing cross-validation to choose the best lambda
+cv_ridge <- cv.glmnet(x_train, y_train, alpha = 0)
+plot(cv_ridge)
+
+# Best lambda
+best_lambda_ridge <- cv_ridge$lambda.min
+print(paste("Best lambda for Ridge:", best_lambda_ridge))
+
+# Predicting using the best lambda
+predictions_ridge <- predict(ridge_model, s = best_lambda_ridge, newx = x_test)
+
+# Calculating RMSE and MAE
+rmse_ridge <- sqrt(mean((y_test - predictions_ridge)^2))
+mae_ridge <- mean(abs(predictions_ridge - y_test))
+
+#Printing RMSE and MAE values
+print(paste("RMSE for Ridge Regression:", rmse_ridge))
+print(paste("MAE for Ridge Regression:", mae_ridge))
+```
+#Ridge regression was utilized to predict the 'Quality of Life' dependent variable, much like linear regression, but with a twist. Ridge regression introduces a degree of bias to the regression estimates through a penalty term that regularizes the coefficients of the model. This approach reduces variance, trading off a small increase in bias against a larger decrease in variance to prevent overfitting, especially beneficial when predictors are correlated. The RMSE value for the Ridge regression model is approximately 0.783, and the MAE value is around 0.618, suggesting a satisfactory predictive performance. These metrics reflect the model's generalization ability and how its predictions deviate from the actual observations.
+
+```{r}
+# Converting the predictions back to the original scale
+predictions_ridge_original_scale <- predictions_ridge * original_sd_qol + original_mean_qol
+
+# Converting the actual scaled test set values back to the original scale
+actual_ridge_original_scale <- test_set$Quality.of.Life * original_sd_qol + original_mean_qol
+
+#Visualization
+
+ggplot(data.frame(Actual = actual_lasso_original_scale, Predicted = as.vector(predictions_ridge_original_scale)), aes(x = Actual, y = Predicted)) +
+  geom_point(colour = 'orange') +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = 'blue') +
+  ggtitle('Actual vs Predicted (Ridge Regression)') +
+  xlab('Actual Quality of Life') +
+  ylab('Predicted Quality of Life') +
+  theme_minimal()
+
+
+```
+
+#The plot for Ridge regression presents a graphical comparison of the actual versus predicted 'Quality of Life' scores. In the visualization, each point signifies a predicted value against its actual counterpart, with the blue dashed line depicting the line of perfect prediction where the predicted values would exactly match the actual values. The distribution of the points around this line illustrates how closely the Ridge regression model's predictions align with the true values. Despite some dispersion, the model appears to track the central tendency reasonably well, which is indicative of its practical utility in predicting 'Quality of Life' outcomes.
+
+```{r}
+# Loading libraries
+library(knitr)
+library(kableExtra)
+
+# Creating a comparison data-frame with RMSE and MAE values for the regression models
+comparison_df <- data.frame(
+  Model = c("Random Forest", "Ridge Regression", "Lasso Regression", "Linear Regression", "SVR", "Decision Tree"),
+  RMSE = round(c(rmse_rf, rmse_ridge, rmse_lasso, rmse_lin_reg, rmse_svr, rmse_dt), 3),
+  MAE = round(c(mae_rf, mae_ridge, mae_lasso, mae_lin_reg, mae_svr, mae_dt), 3)
+)
+
+rf_row <- which(comparison_df$Model == "Random Forest")
+
+#Printing the comparison table
+kable(comparison_df, caption = "Comparison of Regression Models based on RMSE and MAE", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F) %>%
+  row_spec(rf_row, bold = TRUE, background = "#DFF2BF") %>%
+  column_spec(1, bold = TRUE) %>%
+  scroll_box(width = "100%", height = "500px")
+
+
+```
+
+#To evaluate the performance of the various regression models applied, a comparative analysis was conducted focusing on the RMSE and MAE values, which are critical indicators of model accuracy. The results were compiled into a comprehensive table to facilitate a clear and concise comparison.
+
+#The Lasso Regression model achieved the lowest Root Mean Square Error (RMSE) of 0.782, suggesting a strong capacity to minimize larger prediction errors.
+
+#The Random Forest model, while not possessing the absolute lowest RMSE, did register the lowest Mean Absolute Error (MAE) at 0.617. This indicates that on average, the Random Forest model's predictions are closer to the actual observations.
+
+#Given the project's focus on generating reliable and consistent quality-of-life predictions, the Random Forest model is selected as the most suitable for this context. It combines a reasonably low RMSE with the best MAE value, suggesting that it can balance the need for both minimizing large errors and providing consistent predictions across the range of data.
